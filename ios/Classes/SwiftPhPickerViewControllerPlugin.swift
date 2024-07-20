@@ -93,6 +93,37 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
                 }
             }
             
+        case "fetch":
+            // Arguments are enforced on dart side.
+            guard let ids = args["ids"] as? [String] else {
+                DispatchQueue.main.async {
+                    result(false)
+                }
+                return
+            }
+            var outputList: [[String: Any?]] = ids.map { ["id": $0] }
+            
+            let assets = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+            completedTasksCounter = 0
+            resultContext = ResultContext(result: result, fetchURL: true)
+            
+            assets.enumerateObjects { (obj: PHAsset, idx: Int, stopPtr: UnsafeMutablePointer<ObjCBool>) in
+                self.getUrl(asset: obj) { (url: URL) in
+                    outputList[idx]["url"] = url.absoluteString
+                    outputList[idx]["path"] = url.path
+                    outputList[idx]["error"] = nil
+                    
+                    self.taskCounterQueue.async {
+                        self.completedTasksCounter += 1
+                        
+                        if self.completedTasksCounter >= assets.count {
+                            self.sendResults(resultContext: self.resultContext!, results: outputList)
+                            return
+                        }
+                    }
+                }
+            }
+          
         case "delete":
             // Arguments are enforced on dart side.
             guard let ids = args["ids"] as? [String] else {
@@ -149,6 +180,24 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
             throw PluginArgumentError("Unknown filter name \(name)")
         }
     }
+    
+    func getUrl(asset: PHAsset, completion: @escaping (URL) -> Void) {
+        switch asset.mediaType {
+        case .image:
+            let options = PHContentEditingInputRequestOptions()
+            asset.requestContentEditingInput(with: options) { (contentEditingInput: PHContentEditingInput?, info: [AnyHashable : Any]) in
+                completion(contentEditingInput!.fullSizeImageURL!)
+            }
+        case .video:
+            let options = PHVideoRequestOptions()
+            PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { (asset: AVAsset?, audioMix: AVAudioMix?, info: [AnyHashable : Any]?) in
+                let urlAsset = asset as! AVURLAsset
+                completion(urlAsset.url)
+            }
+        default:
+            break
+        }
+    }
 }
 
 extension SwiftPhPickerViewControllerPlugin: PHPickerViewControllerDelegate {
@@ -183,26 +232,15 @@ extension SwiftPhPickerViewControllerPlugin: PHPickerViewControllerDelegate {
             res.itemProvider.loadFileRepresentation(forTypeIdentifier: fileRepresentation ?? UTType.data.identifier) { url, err in
                 // This is a separate thread.
                 var itemError: String?
-                var itemLocalURL: URL?
                 
                 if let err = err {
                     itemError = err.localizedDescription
-                } else if let url = url {
-                    do {
-                        // https://developer.apple.com/documentation/photokit/selecting_photos_and_videos_in_ios
-                        let localURL = FileManager.default.temporaryDirectory.appendingPathComponent(url.lastPathComponent)
-                        try? FileManager.default.removeItem(at: localURL)
-                        try FileManager.default.copyItem(at: url, to: localURL)
-                        itemLocalURL = localURL
-                    } catch {
-                        itemError = error.localizedDescription
-                    }
                 }
                 
                 self.taskCounterQueue.async {
                     self.completedTasksCounter += 1
-                    outputList[i]["url"] = itemLocalURL?.absoluteString
-                    outputList[i]["path"] = itemLocalURL?.path
+                    outputList[i]["url"] = url?.absoluteString
+                    outputList[i]["path"] = url?.path
                     outputList[i]["error"] = itemError
                     
                     if self.completedTasksCounter >= results.count {
