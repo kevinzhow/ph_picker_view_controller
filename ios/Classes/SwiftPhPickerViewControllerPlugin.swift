@@ -107,11 +107,16 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
             completedTasksCounter = 0
             resultContext = ResultContext(result: result, fetchURL: true)
             
+            guard assets.count > 0 else {
+                sendResults(resultContext: resultContext!, results: [])
+                return
+            }
+            
             assets.enumerateObjects { (obj: PHAsset, idx: Int, stopPtr: UnsafeMutablePointer<ObjCBool>) in
-                self.getUrl(asset: obj) { (url: URL) in
-                    outputList[idx]["url"] = url.absoluteString
-                    outputList[idx]["path"] = url.path
-                    outputList[idx]["error"] = nil
+                self.getUrl(asset: obj) { (url: URL?) in
+                    outputList[idx]["url"] = url?.absoluteString
+                    outputList[idx]["path"] = url?.path
+                    outputList[idx]["error"] = url == nil ? "NotFound" : nil
                     
                     self.taskCounterQueue.async {
                         self.completedTasksCounter += 1
@@ -181,7 +186,7 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    func getUrl(asset: PHAsset, completion: @escaping (URL) -> Void) {
+    func getUrl(asset: PHAsset, completion: @escaping (URL?) -> Void) {
         switch asset.mediaType {
         case .image:
             let options = PHContentEditingInputRequestOptions()
@@ -194,8 +199,13 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
             options.version = .current
             options.isNetworkAccessAllowed = true
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { (asset: AVAsset?, audioMix: AVAudioMix?, info: [AnyHashable : Any]?) in
-                let urlAsset = asset as! AVURLAsset
-                completion(urlAsset.url)
+            
+                if let urlAsset = asset {
+                    completion((urlAsset as! AVURLAsset).url)
+                } else {
+                    completion(nil)
+                }
+                
             }
         default:
             break
