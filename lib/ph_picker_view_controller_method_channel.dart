@@ -42,4 +42,16 @@ class MethodChannelPhPickerViewController
     return (await methodChannel.invokeMethod<bool>('delete', {"ids": ids})) ??
         false;
   }
+
+  @override
+  Future<List<PHPickerResult>?> fetch(List<String> ids) async {
+    var rawList =
+        await methodChannel.invokeMethod<List<dynamic>>('fetch', {'ids': ids});
+    if (rawList == null) {
+      return null;
+    }
+    return rawList
+        .map((e) => PHPickerResult(e['id'], e['url'], e['path'], e['error']))
+        .toList();
+  }
 }

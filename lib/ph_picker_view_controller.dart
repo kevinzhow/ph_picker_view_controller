@@ -72,4 +72,8 @@ class PhPickerViewController {
   Future<bool> delete(List<String> ids) {
     return PhPickerViewControllerPlatform.instance.delete(ids);
   }
+
+  Future<List<PHPickerResult>?> fetch(List<String> ids) {
+    return PhPickerViewControllerPlatform.instance.fetch(ids);
+  }
 }
