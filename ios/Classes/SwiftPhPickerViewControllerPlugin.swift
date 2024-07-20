@@ -190,6 +190,9 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
             }
         case .video:
             let options = PHVideoRequestOptions()
+            options.deliveryMode = .fastFormat
+            options.version = .current
+            options.isNetworkAccessAllowed = true
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { (asset: AVAsset?, audioMix: AVAudioMix?, info: [AnyHashable : Any]?) in
                 let urlAsset = asset as! AVURLAsset
                 completion(urlAsset.url)
