@@ -112,7 +112,10 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
                 return
             }
             
-            assets.enumerateObjects { (obj: PHAsset, idx: Int, stopPtr: UnsafeMutablePointer<ObjCBool>) in
+            assets.enumerateObjects { [weak self] (obj: PHAsset, idx: Int, stopPtr: UnsafeMutablePointer<ObjCBool>) in
+                guard let self else {
+                    return
+                }
                 self.getUrl(asset: obj) { (url: URL?) in
                     outputList[idx]["url"] = url?.absoluteString
                     outputList[idx]["path"] = url?.path
@@ -199,13 +202,11 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
             options.version = .current
             options.isNetworkAccessAllowed = true
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { (asset: AVAsset?, audioMix: AVAudioMix?, info: [AnyHashable : Any]?) in
-            
                 if let urlAsset = asset {
                     completion((urlAsset as! AVURLAsset).url)
                 } else {
                     completion(nil)
                 }
-                
             }
         default:
             break
