@@ -108,7 +108,9 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
             resultContext = ResultContext(result: result, fetchURL: true)
             
             guard assets.count > 0 else {
-                sendResults(resultContext: resultContext!, results: [])
+                if let resultContext = resultContext {
+                    sendResults(resultContext: resultContext, results: [])
+                }
                 return
             }
             
@@ -125,7 +127,9 @@ public class SwiftPhPickerViewControllerPlugin: NSObject, FlutterPlugin {
                         self.completedTasksCounter += 1
                         
                         if self.completedTasksCounter >= assets.count {
-                            self.sendResults(resultContext: self.resultContext!, results: outputList)
+                            if let resultContext = self.resultContext {
+                                self.sendResults(resultContext: resultContext, results: outputList)
+                            }
                             return
                         }
                     }
